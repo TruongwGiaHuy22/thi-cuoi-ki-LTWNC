@@ -1,117 +1,127 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { novels } from "../data/novel";
 
 export default function DanhSachAI() {
   const [selectedGenres, setSelectedGenres] = useState([]);
-  const genres = [
-    "Action","Adapted to Anime","Adapted to Drama CD","Adapted to Manga","Adapted to Manhua","Adapted to Manhwa",
-    "Adult","Adventure","Age Gap","Boys Love","Character Growth","Chinese Novel","Comedy","Cooking",
-    "Different Social Status","Drama","Ecchi","English Novel","Fanfiction","Fantasy","Female Protagonist",
-    "Game","Gender Bender","Harem","Historical","Horror","Incest","Isekai","Josei","Korean Novel","Magic",
-    "Martial Arts","Mature","Mecha","Military","Misunderstanding","Mystery","Netorare","One shot","Otome Game",
-    "Parody","Psychological","Reverse Harem","Romance","Satire","School Life","Science Fiction","Seinen",
-    "Shoujo","Shoujo ai","Shounen","Shounen ai","Slice of Life","Slow Life","Sports","Super Power","Supernatural",
-    "Suspense","Tragedy","Wars","Web Novel","Workplace","Wuxia","Xianxia","Yandere","Yuri"
-  ];
+  const [selectedLetter, setSelectedLetter] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState([]);
+  const [appliedStatus, setAppliedStatus] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 13;
+  const genres = ["Action","Adapted to Anime","Adapted to Drama CD","Adapted to Manga","Adapted to Manhua","Adapted to Manhwa","Adult","Adventure","Age Gap","Boys Love","Character Growth","Chinese Novel","Comedy","Cooking","Different Social Status","Drama","Ecchi","English Novel","Fanfiction","Fantasy","Female Protagonist","Game","Gender Bender","Harem","Historical","Horror","Incest","Isekai","Josei","Korean Novel","Magic","Martial Arts","Mature","Mecha","Military","Misunderstanding","Mystery","Netorare","One shot","Otome Game","Parody","Psychological","Reverse Harem","Romance","Satire","School Life","Science Fiction","Seinen","Shoujo","Shoujo ai","Shounen","Shounen ai","Slice of Life","Slow Life","Sports","Super Power","Supernatural","Suspense","Tragedy","Wars","Web Novel","Workplace","Wuxia","Xianxia","Yandere","Yuri"];
+  const STATUS_OPTIONS = ["Đang tiến hành", "Tạm ngưng", "Hoàn thành"];
+
   const toggleGenre = (genre) => {
-    setSelectedGenres((current) =>
-      current.includes(genre)
-        ? current.filter((item) => item !== genre)
-        : [...current, genre]
-    );
+    setSelectedGenres((c) => (c.includes(genre) ? c.filter((i) => i !== genre) : [...c, genre]));
+    setCurrentPage(1);
+  };
+  const toggleStatus = (status) => setSelectedStatus((c) => (c.includes(status) ? c.filter((i) => i !== status) : [...c, status]));
+  const handleApplyStatus = () => {
+    setAppliedStatus(selectedStatus);
+    setCurrentPage(1);
+  };
+  const handleResetToDefault = () => {
+    setSelectedLetter("ALL");
+    setSelectedGenres([]);
+    setSelectedStatus([]);
+    setAppliedStatus([]);
+    setCurrentPage(1);
   };
 
-  // Lọc truyện AI có id từ 3 đến 15
-  const aiNovels = novels
-    .filter(n => n.type === "AI" && n.id >= 3 && n.id <= 15)
-    .sort((a, b) => b.id - a.id);
+  const baseAI = useMemo(() => novels.filter((n) => (n.type || "").trim() === "AI"), []);
+
+  const filteredAI = useMemo(() => {
+    return baseAI
+      .filter((n) => appliedStatus.length === 0 || appliedStatus.includes(n.status))
+      .filter((n) => selectedGenres.length === 0 || selectedGenres.some((g) => Array.isArray(n.genres) && n.genres.includes(g)))
+      .filter((n) => {
+        if (selectedLetter === "ALL") return true;
+        const firstChar = (n.title || "").trim().charAt(0).toUpperCase();
+        const isAZ = firstChar >= "A" && firstChar <= "Z";
+        return selectedLetter === "#" ? !isAZ : firstChar === selectedLetter;
+      })
+      .sort((a, b) => b.id - a.id);
+  }, [appliedStatus, selectedGenres, selectedLetter, baseAI]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAI.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const visibleAI = filteredAI.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="ai-container">
-      {/* LEFT */}
       <div className="ai-left">
-        <h2 className="ai-title">
-          Truyện AI mới cập nhật ({aiNovels.length})
-        </h2>
-        {aiNovels.map((novel) => {
+        <h2 className="ai-title">Truyện AI mới cập nhật ({filteredAI.length})</h2>
+
+        {visibleAI.map((novel) => {
           const hasChapters = novel.chapters && novel.chapters.length > 0;
-          const lastChapterTitle = hasChapters
-            ? novel.chapters[novel.chapters.length - 1].title
-            : "Chưa có chương";
+          const lastChapterTitle = hasChapters ? novel.chapters[novel.chapters.length - 1].title : "Chưa có chương";
           return (
             <div key={novel.id} className="ai-card">
-              <img
-                src={novel.cover || "/default.jpg"}
-                alt={novel.title}
-                className="ai-img"
-              />
+              <img src={novel.cover || "/default.jpg"} alt={novel.title} className="ai-img" />
               <div className="ai-content">
                 <h3 className="ai-name">{novel.title}</h3>
                 <p className="ai-meta">
                   <span className="meta-label">Người đăng</span>
-                  <span className="author-name">
-                    {" "}{novel.sangTacInfo?.author || "Ẩn danh"}
-                  </span>
+                  <span className="author-name"> {novel.sangTacInfo?.author || "Ẩn danh"}</span>
                   <span className="meta-label"> &nbsp; Số từ </span>
-                  <span className="word-count">
-                    {novel.sangTacInfo?.words ||
-                      (hasChapters ? novel.chapters.length * 1000 : 0)}
-                  </span>
+                  <span className="word-count">{novel.sangTacInfo?.words || (hasChapters ? novel.chapters.length * 1000 : 0)}</span>
                 </p>
-                <p className="ai-desc">
-                  {novel.sangTacInfo?.description || novel.description}
-                </p>
-                <p className="ai-chapter-main">
-                  {novel.sangTacInfo?.chapterMain || lastChapterTitle}
-                </p>
-                <p className="ai-chapter-sub">
-                  {novel.sangTacInfo?.chapterSub ||
-                    (hasChapters ? "" : "Đang cập nhật nội dung...")}
-                </p>
+                <p className="ai-desc">{novel.sangTacInfo?.description || novel.description}</p>
+                <p className="ai-chapter-main">{novel.sangTacInfo?.chapterMain || lastChapterTitle}</p>
+                <p className="ai-chapter-sub">{novel.sangTacInfo?.chapterSub || (hasChapters ? "" : "Đang cập nhật nội dung...")}</p>
               </div>
             </div>
           );
         })}
+
+        <div className="danhsach-pagination">
+          <button type="button" className="danhsach-page-btn danhsach-page-edge" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>Đầu</button>
+          {Array.from({ length: totalPages }, (_, index) => {
+            const page = index + 1;
+            return (
+              <button
+                key={page}
+                type="button"
+                className={`danhsach-page-btn danhsach-page-number ${currentPage === page ? "active" : ""}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            );
+          })}
+          <button type="button" className="danhsach-page-btn danhsach-page-edge" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}>Cuối</button>
+        </div>
       </div>
-      {/* RIGHT SIDEBAR */}
+
       <aside className="ai-sidebar">
         <div className="sidebar-panel">
           <h3 className="ai-box-title">Chữ cái</h3>
           <div className="ai-alpha-grid">
-            <span className="ai-alpha-active">TẤT CẢ</span>
-            <span>#</span>
-            {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
-              <span key={letter}>{letter}</span>
+            <span className={selectedLetter === "ALL" ? "ai-alpha-active" : ""} onClick={handleResetToDefault}>TẤT CẢ</span>
+            <span className={selectedLetter === "#" ? "ai-alpha-active" : ""} onClick={() => { setSelectedLetter("#"); setCurrentPage(1); }}>#</span>
+            {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((c) => (
+              <span key={c} className={selectedLetter === c ? "ai-alpha-active" : ""} onClick={() => { setSelectedLetter(c); setCurrentPage(1); }}>{c}</span>
             ))}
           </div>
         </div>
-        <div className="sidebar-panel ai-filter-panel">
-          <h3 className="ai-box-title">Phân loại</h3>
-          <label className="ai-check"><input type="checkbox" defaultChecked /> Truyện dịch</label>
-          <label className="ai-check"><input type="checkbox" /> Truyện sáng tác</label>
-          <label className="ai-check"><input type="checkbox" /> Truyện AI dịch</label>
-          <button className="ai-apply-btn">Áp dụng</button>
-        </div>
+
         <div className="sidebar-panel ai-filter-panel">
           <h3 className="ai-box-title">Tình trạng</h3>
-          <label className="ai-check"><input type="checkbox" defaultChecked /> Đang tiến hành</label>
-          <label className="ai-check"><input type="checkbox" defaultChecked /> Tạm ngưng</label>
-          <label className="ai-check"><input type="checkbox" defaultChecked /> Đã hoàn thành</label>
-          <button className="ai-apply-btn">Áp dụng</button>
+          {STATUS_OPTIONS.map((status) => (
+            <label className="ai-check" key={status}>
+              <input type="checkbox" checked={selectedStatus.includes(status)} onChange={() => toggleStatus(status)} /> {status === "Hoàn thành" ? "Đã hoàn thành" : status}
+            </label>
+          ))}
+          <button type="button" className="ai-apply-btn" onClick={handleApplyStatus}>Áp dụng</button>
         </div>
+
         <div className="sidebar-panel">
           <h3 className="ai-box-title">Thể loại</h3>
           <div className="ai-genre-list">
             {genres.map((genre) => (
-              <label
-                key={genre}
-                className={`ai-genre-item ${selectedGenres.includes(genre) ? "active" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedGenres.includes(genre)}
-                  onChange={() => toggleGenre(genre)}
-                />
+              <label key={genre} className={`ai-genre-item ${selectedGenres.includes(genre) ? "active" : ""}`}>
+                <input type="checkbox" checked={selectedGenres.includes(genre)} onChange={() => toggleGenre(genre)} />
                 <span>{genre}</span>
               </label>
             ))}

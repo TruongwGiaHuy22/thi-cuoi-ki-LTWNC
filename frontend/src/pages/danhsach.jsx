@@ -1,34 +1,104 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { novels } from "../data/novel.js";
 
-export default function DanhSachPage() {
+export default function DanhSach() {
   const [selectedGenres, setSelectedGenres] = useState([]);
+  const [selectedLetter, setSelectedLetter] = useState("ALL");
+  const [sortOrder, setSortOrder] = useState("latest");
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState([]);
+
+  const [appliedTypes, setAppliedTypes] = useState([]);
+  const [appliedStatus, setAppliedStatus] = useState([]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 18;
 
   const genres = [
-    "Action","Adapted to Anime","Adapted to Drama CD","Adapted to Manga","Adapted to Manhua","Adapted to Manhwa",
-    "Adult","Adventure","Age Gap","Boys Love","Character Growth","Chinese Novel","Comedy","Cooking",
-    "Different Social Status","Drama","Ecchi","English Novel","Fanfiction","Fantasy","Female Protagonist",
-    "Game","Gender Bender","Harem","Historical","Horror","Incest","Isekai","Josei","Korean Novel","Magic",
-    "Martial Arts","Mature","Mecha","Military","Misunderstanding","Mystery","Netorare","One shot","Otome Game",
-    "Parody","Psychological","Reverse Harem","Romance","Satire","School Life","Science Fiction","Seinen",
-    "Shoujo","Shoujo ai","Shounen","Shounen ai","Slice of Life","Slow Life","Sports","Super Power","Supernatural",
-    "Suspense","Tragedy","Wars","Web Novel","Workplace","Wuxia","Xianxia","Yandere","Yuri"
+    "Action", "Adapted to Anime", "Adapted to Drama CD", "Adapted to Manga", "Adapted to Manhua", "Adapted to Manhwa",
+    "Adult", "Adventure", "Age Gap", "Boys Love", "Character Growth", "Chinese Novel", "Comedy", "Cooking",
+    "Different Social Status", "Drama", "Ecchi", "English Novel", "Fanfiction", "Fantasy", "Female Protagonist",
+    "Game", "Gender Bender", "Harem", "Historical", "Horror", "Incest", "Isekai", "Josei", "Korean Novel", "Magic",
+    "Martial Arts", "Mature", "Mecha", "Military", "Misunderstanding", "Mystery", "Netorare", "One shot", "Otome Game",
+    "Parody", "Psychological", "Reverse Harem", "Romance", "Satire", "School Life", "Science Fiction", "Seinen",
+    "Shoujo", "Shoujo ai", "Shounen", "Shounen ai", "Slice of Life", "Slow Life", "Sports", "Super Power", "Supernatural",
+    "Suspense", "Tragedy", "Wars", "Web Novel", "Workplace", "Wuxia", "Xianxia", "Yandere", "Yuri"
+  ];
+
+  const TYPE_OPTIONS = [
+    { label: "Truyện dịch", value: "Truyện dịch" },
+    { label: "Truyện sáng tác", value: "Sáng tác" },
+    { label: "Truyện AI dịch", value: "AI" },
+  ];
+
+  const STATUS_OPTIONS = [
+    { label: "Đang tiến hành", value: "Đang tiến hành" },
+    { label: "Tạm ngưng", value: "Tạm ngưng" },
+    { label: "Đã hoàn thành", value: "Hoàn thành" },
   ];
 
   const toggleGenre = (genre) => {
-    setSelectedGenres((current) =>
-      current.includes(genre)
-        ? current.filter((item) => item !== genre)
-        : [...current, genre]
+    setSelectedGenres((prev) =>
+      prev.includes(genre) ? prev.filter((item) => item !== genre) : [...prev, genre]
     );
   };
 
-  const totalPages = Math.max(5, Math.ceil(novels.length / itemsPerPage));
+  const toggleType = (type) => {
+    setSelectedTypes((prev) =>
+      prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+    );
+  };
+
+  const toggleStatus = (status) => {
+    setSelectedStatus((prev) =>
+      prev.includes(status) ? prev.filter((item) => item !== status) : [...prev, status]
+    );
+  };
+
+  const handleApplyFilter = () => {
+    setAppliedTypes(selectedTypes);
+    setAppliedStatus(selectedStatus);
+    setCurrentPage(1);
+  };
+  const handleResetToDefault = () => {
+    setSelectedLetter("ALL");
+    setSortOrder("latest");
+    setSelectedGenres([]);
+    setSelectedTypes([]);
+    setSelectedStatus([]);
+    setAppliedTypes([]);
+    setAppliedStatus([]);
+    setCurrentPage(1);
+  };
+
+  const filteredNovels = useMemo(() => {
+    const result = novels.filter((novel) => {
+      const matchType = appliedTypes.length === 0 || appliedTypes.includes(novel.type);
+      const matchStatus = appliedStatus.length === 0 || appliedStatus.includes(novel.status);
+      const matchGenre =
+        selectedGenres.length === 0 ||
+        selectedGenres.some((genre) => Array.isArray(novel.genres) && novel.genres.includes(genre));
+      const firstChar = (novel.title || "").trim().charAt(0).toUpperCase();
+      const isAZ = firstChar >= "A" && firstChar <= "Z";
+      const matchLetter =
+        selectedLetter === "ALL" ||
+        (selectedLetter === "#" ? !isAZ : firstChar === selectedLetter);
+
+      return matchType && matchStatus && matchGenre && matchLetter;
+    });
+
+    if (sortOrder === "asc") {
+      return [...result].sort((a, b) => (a.title || "").localeCompare(b.title || "", "vi"));
+    }
+    if (sortOrder === "desc") {
+      return [...result].sort((a, b) => (b.title || "").localeCompare(a.title || "", "vi"));
+    }
+    return [...result].sort((a, b) => b.id - a.id);
+  }, [appliedTypes, appliedStatus, selectedGenres, selectedLetter, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredNovels.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const pagedNovels = Array.from({ length: totalPages * itemsPerPage }, (_, index) => novels[index % novels.length]);
-  const visibleNovels = pagedNovels.slice(startIndex, startIndex + itemsPerPage);
+  const visibleNovels = filteredNovels.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="danhsach-page">
@@ -38,10 +108,14 @@ export default function DanhSachPage() {
             <span className="home-section-tag active">Danh sách truyện</span>
           </div>
         </div>
-        <select className="danhsach-select">
-          <option>Mới cập nhật</option>
-          <option>A - Z</option>
-          <option>Z - A</option>
+        <select
+          className="danhsach-select"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value)}
+        >
+          <option value="latest">Mới cập nhật</option>
+          <option value="asc">A - Z</option>
+          <option value="desc">Z - A</option>
         </select>
       </div>
 
@@ -54,7 +128,7 @@ export default function DanhSachPage() {
                 <div className="home-card-meta">
                   <p className="home-card-label">{novel.type}</p>
                   <h3>{novel.title}</h3>
-                  <p>{novel.genres.join(", ")}</p>
+                  <p>{Array.isArray(novel.genres) ? novel.genres.join(", ") : ""}</p>
                   <span className="danhsach-status">{novel.status}</span>
                 </div>
               </article>
@@ -100,28 +174,56 @@ export default function DanhSachPage() {
           <div className="sidebar-panel">
             <h3 className="danhsach-box-title">Chữ cái</h3>
             <div className="danhsach-alpha-grid">
-              <span className="danhsach-alpha-active">TẤT CẢ</span>
-              <span>#</span>
+              <span
+                className={selectedLetter === "ALL" ? "danhsach-alpha-active" : ""}
+                onClick={handleResetToDefault}
+              >
+                TẤT CẢ
+              </span>
+              <span
+                className={selectedLetter === "#" ? "danhsach-alpha-active" : ""}
+                onClick={() => setSelectedLetter("#")}
+              >
+                #
+              </span>
               {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((c) => (
-                <span key={c}>{c}</span>
+                <span
+                  key={c}
+                  className={selectedLetter === c ? "danhsach-alpha-active" : ""}
+                  onClick={() => setSelectedLetter(c)}
+                >
+                  {c}
+                </span>
               ))}
             </div>
           </div>
 
           <div className="sidebar-panel danhsach-filter-panel">
             <h3 className="danhsach-box-title">Phân loại</h3>
-            <label className="danhsach-check"><input type="checkbox" defaultChecked /> Truyện dịch</label>
-            <label className="danhsach-check"><input type="checkbox" /> Truyện sáng tác</label>
-            <label className="danhsach-check"><input type="checkbox" /> Truyện AI dịch</label>
-            <button className="danhsach-apply-btn">Áp dụng</button>
+            {TYPE_OPTIONS.map((opt) => (
+              <label className="danhsach-check" key={opt.value}>
+                <input
+                  type="checkbox"
+                  checked={selectedTypes.includes(opt.value)}
+                  onChange={() => toggleType(opt.value)}
+                /> {opt.label}
+              </label>
+            ))}
+            <button type="button" className="danhsach-apply-btn" onClick={handleApplyFilter}>Áp dụng</button>
           </div>
 
           <div className="sidebar-panel danhsach-filter-panel">
             <h3 className="danhsach-box-title">Tình trạng</h3>
-            <label className="danhsach-check"><input type="checkbox" defaultChecked /> Đang tiến hành</label>
-            <label className="danhsach-check"><input type="checkbox" defaultChecked /> Tạm ngưng</label>
-            <label className="danhsach-check"><input type="checkbox" defaultChecked /> Đã hoàn thành</label>
-            <button className="danhsach-apply-btn">Áp dụng</button>
+            {STATUS_OPTIONS.map((opt) => (
+              <label className="danhsach-check" key={opt.value}>
+                <input
+                  type="checkbox"
+                  checked={selectedStatus.includes(opt.value)}
+                  onChange={() => toggleStatus(opt.value)}
+                /> {opt.label}
+              </label>
+            ))}
+            <button type="button" className="danhsach-apply-btn" onClick={handleApplyFilter}>Áp dụng</button>
           </div>
 
           <div className="sidebar-panel">
@@ -146,5 +248,4 @@ export default function DanhSachPage() {
       </div>
     </div>
   );
-
-};
+}
